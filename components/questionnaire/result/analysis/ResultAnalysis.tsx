@@ -13,6 +13,8 @@ import { ISIResult } from './ISIResult';
 import { ADHDResult } from './ADHDResult';
 import { GDResult } from './GDResult';
 import { NPDResult } from './NPDResult';
+import { SASResult } from './SASResult';
+import { HCL32Result } from './HCL32Result';
 
 interface Props {
   questionnaireId: string;
@@ -41,10 +43,16 @@ export function ResultAnalysis({ questionnaireId, answers }: Props) {
       return <ISIResult answers={answers} />;
     case 'adhd':
       return <ADHDResult answers={answers} />;
+    case 'asrs':
+      return <ADHDResult answers={answers} />;
     case 'gd':
       return <GDResult answers={answers} />;
     case 'npd':
       return <NPDResult answers={answers} />;
+    case 'sas':
+      return <SASResult answers={answers} />;
+    case 'hcl32':
+      return <HCL32Result answers={answers} />;
     default:
       return (
         <div className="mt-6 p-6 bg-yellow-50 border border-yellow-200 rounded-lg">

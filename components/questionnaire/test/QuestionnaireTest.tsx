@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { compressToEncodedURIComponent as compress } from 'lz-string';
 import { Question } from '@/components/questionnaire/test/public/Question';
 import { Navigation } from '@/components/questionnaire/test/public/Navigation';
@@ -43,29 +43,20 @@ export function Questionnaire({
     };
   }, [id, answers]);
 
-
-
-  // Initialize question data - using real questionnaire data
-  const generateQuestions = (): QuestionType[] => {
-
-    // Check the questionnaire for question data
+  const questions = useMemo<QuestionType[]>(() => {
     if (!questionnaire.questions || questionnaire.questions.length === 0) {
-      // If real data is not available, simulated data is used
       throw new Error('Questionnaire data not found');
     }
 
-    // Use real questionnaire data
     return questionnaire.questions.map((q, index: number) => {
-      const options = questionnaire.renderOptions(q.id)
+      const options = questionnaire.renderOptions(q.id);
       return {
         id: index + 1,
         content: q.content,
-        options: options,
-      }
+        options,
+      };
     });
-  };
-
-  const [questions, setQuestions] = useState<QuestionType[]>([]);
+  }, [questionnaire]);
   const [activePanelQuestion, setActivePanelQuestion] = useState<number | null>(
     null
   );
@@ -88,19 +79,6 @@ export function Questionnaire({
   const completionPercentage = questions.length
     ? (answeredCount / questions.length) * 100
     : 0;
-
-  // This generateQuestions function changes every time useEffect runs
-  // Solution is to move it inside useEffect or wrap it with useCallback
-  const generateQuestionsCallback = useCallback(generateQuestions, [
-    questionnaire,
-  ]);
-
-  useEffect(() => {
-    setQuestions(generateQuestionsCallback());
-    // Reset the refs object to reassign when the list of issues changes
-    questionRefs.current = {};
-  }, [id, questionnaire, generateQuestionsCallback]);
-
 
   const handleSelect = (questionId: number, value: string) => {
     const newAnswers = {

@@ -10,6 +10,8 @@ import pss10Result from './result/pss10';
 import adhdResult from './result/adhd';
 import gdResult from './result/gd';
 import npdResult from './result/npd';
+import sasResult from './result/sas';
+import hcl32Result from './result/hcl32';
 
 export default {
     ocdResult,
@@ -24,4 +26,6 @@ export default {
     adhdResult,
     gdResult,
     npdResult,
+    sasResult,
+    hcl32Result,
 } as const;

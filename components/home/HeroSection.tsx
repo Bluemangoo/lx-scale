@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Lock, Shield } from 'lucide-react';
+import { ArrowRight, Shield } from 'lucide-react';
 import { getScopedI18n } from '@/locales/server';
 
 export async function HeroSection() {
@@ -50,10 +50,6 @@ export async function HeroSection() {
               <div className="flex items-center gap-2">
                 <Shield className="h-5 w-5 text-primary" />
                 <span className="text-sm">{t('completelyFree')}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Lock className="h-5 w-5 text-primary" />
-                <span className="text-sm">{t('localProcessing')}</span>
               </div>
             </div>
 
