@@ -33,9 +33,10 @@ export function DimensionsAnalysis({
         {dimensions.map((dim, index) => {
           // If no real data, use mock data to display dimensions
           const dimensionsLength = dimensions?.length || 1;
+          const offset = (totalScore + index) % 3;
           const virtualScore =
             Math.round(totalScore / (dimensionsLength * 10)) +
-            Math.floor(Math.random() * 3);
+            offset;
           const scorePercentage = Math.min((virtualScore / 10) * 100, 100);
 
           return (

@@ -12,7 +12,8 @@ import {adhd} from "./adhd/zh";
 import {gd} from "./gd/zh";
 import {npd} from "./npd/zh";
 import {hcl32} from "./hcl32/zh";
-import {sas} from "./sas/zh"
+import {sas} from "./sas/zh";
+import {asrs} from "./asrs/zh";
 
 export const questionnairesZh: Questionnaire[] = [
     ocd,
@@ -29,4 +30,5 @@ export const questionnairesZh: Questionnaire[] = [
     npd,
     hcl32,
     sas,
+    asrs,
 ];

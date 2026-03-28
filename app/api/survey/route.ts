@@ -3,6 +3,46 @@ import { getPool, ensureSurveyTable } from '@/lib/db';
 
 const DEFAULT_LOCALE = 'zh';
 
+export async function GET(request: NextRequest) {
+  try {
+    const db = await getPool();
+    if (!db) {
+      return NextResponse.json({ ok: true, persisted: false, items: [] });
+    }
+
+    await ensureSurveyTable();
+
+    const { searchParams } = new URL(request.url);
+    const limitParam = parseInt(searchParams.get('limit') || '200', 10);
+    const limit = Number.isNaN(limitParam)
+      ? 200
+      : Math.max(1, Math.min(limitParam, 1000));
+
+    const result = await db.query(
+      `SELECT id, name, locale, scores, created_at
+       FROM survey_results
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+
+    return NextResponse.json({
+      ok: true,
+      persisted: true,
+      items: result.rows,
+    });
+  } catch (error) {
+    console.error('[survey API] Error listing survey results:', error);
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        message: '查询数据时出错，请稍后再试。',
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

@@ -2,7 +2,7 @@
 
 import { notFound } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState, useMemo, use } from 'react';
+import { useState, useMemo, use } from 'react';
 import { Button } from '@/components/ui/button';
 import { Questionnaire } from '@/types';
 import Link from 'next/link';
@@ -21,39 +21,19 @@ export default function QuestionnaireResultPage({
 }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(true);
+  // Store decoded answers
+  const [isChatLimitReached, setIsChatLimitReached] = useState(false);
   const t = useScopedI18n('app.questionnaire.result');
 
   // Get the questionnaire with specified id from questionnaire data
   const questionnaire = useQuestionnaire(id) as Questionnaire;
 
-  // Load results from local storage or URL parameters
-  useEffect(() => {
-    // If questionnaire not found, don't execute subsequent logic
-    if (!questionnaire || !questionnaire.details) {
-      return;
-    }
-
-    // Read parameters from URL
+  const decodedAnswers = useMemo(() => {
     const encodedAnswers = searchParams.get('ans');
-
-    // Decompress answers (if they exist)
-    let answersArray: string[] = [];
-    if (encodedAnswers) {
-      const raw = decompress(encodedAnswers) || '';
-      answersArray = raw.split('');
-    }
-
-      // Save to state for rendering AnswerList
-    setDecodedAnswers(answersArray);
-
-    setLoading(false);
-  }, [id, searchParams, questionnaire]);
-
-  // Store decoded answers
-  const [decodedAnswers, setDecodedAnswers] = useState<string[]>([]);
-  // Conversation limit status
-  const [isChatLimitReached, setIsChatLimitReached] = useState(false);
+    if (!encodedAnswers) return [];
+    const raw = decompress(encodedAnswers) || '';
+    return raw.split('');
+  }, [searchParams]);
 
   // Construct question-option text kv pairs from decoded answers for AI
   const questionnaireResults: Record<string, string> = useMemo(() => {
@@ -75,15 +55,7 @@ export default function QuestionnaireResultPage({
     return notFound();
   }
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (!decodedAnswers) {
+  if (decodedAnswers.length === 0) {
     return (
       <div className="flex justify-center items-center min-h-screen  md:p-4 p-2">
         <div className="max-w-6xl w-full bg-white rounded-lg shadow-lg md:p-8 p-4 border">

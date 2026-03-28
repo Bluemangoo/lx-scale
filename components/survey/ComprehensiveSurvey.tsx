@@ -9,6 +9,11 @@ import { Questionnaire, QuestionType } from '@/types';
 import { calculatePHQ9Results } from '@/components/questionnaire/test/private/PHQ9Calculator';
 import { calculateGAD7Results } from '@/components/questionnaire/test/private/GAD7Calculator';
 import { calculatePSS10Results } from '@/components/questionnaire/test/private/PSS10Calculator';
+import { calculateSCL90Results } from '@/components/questionnaire/test/private/SCL90Calculator';
+import { calculateSDSResults } from '@/components/questionnaire/test/private/SDSCalculator';
+import { calculateSASResults } from '@/components/questionnaire/test/private/SASCalculator';
+import { calculateHCL32Results } from '@/components/questionnaire/test/private/HCL32Calculator';
+import { calculateADHDResults } from '@/components/questionnaire/test/private/ADHDCalculator';
 import { toast } from 'sonner';
 import { useScopedI18n } from '@/locales/client';
 
@@ -32,6 +37,15 @@ interface ScoreEntry {
 type AllAnswers = Record<string, Record<number, string>>;
 type AllScores = Record<string, ScoreEntry>;
 
+const SCORE_TABLE_ORDER = ['scl90', 'sds', 'sas', 'hcl32', 'asrs'] as const;
+const SCORE_TABLE_LABELS: Record<string, string> = {
+  scl90: 'SCL-90',
+  sds: 'SDS',
+  sas: 'SAS',
+  hcl32: 'HCL-32',
+  asrs: 'ASRS',
+};
+
 function computeScore(
   id: string,
   answers: Record<number, string>,
@@ -41,24 +55,17 @@ function computeScore(
   if (id === 'phq9') return calculatePHQ9Results(args) as ScoreEntry;
   if (id === 'gad7') return calculateGAD7Results(args) as ScoreEntry;
   if (id === 'pss10') return calculatePSS10Results(args) as ScoreEntry;
+  if (id === 'scl90') return calculateSCL90Results(args) as ScoreEntry;
+  if (id === 'sds') return calculateSDSResults(args) as ScoreEntry;
+  if (id === 'sas') return calculateSASResults(args) as ScoreEntry;
+  if (id === 'hcl32') return calculateHCL32Results(args) as ScoreEntry;
+  if (id === 'asrs') return calculateADHDResults(args) as ScoreEntry;
   const totalScore = Object.values(answers).reduce(
     (s, v) => s + (parseInt(v) || 0),
     0,
   );
   return { totalScore, severity: '' };
 }
-
-const SEVERITY_COLOR: Record<string, string> = {
-  minimal: 'text-green-600',
-  normal: 'text-green-600',
-  low: 'text-green-600',
-  mild: 'text-yellow-600',
-  moderate: 'text-orange-600',
-  moderately_severe: 'text-red-500',
-  severe: 'text-red-700',
-  high: 'text-red-700',
-  extremely_severe: 'text-red-900',
-};
 
 const QUESTIONS_PER_PAGE = 5;
 const MAX_NAME_LENGTH = 100;
@@ -251,6 +258,14 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
 
   // ── Results step ──────────────────────────────────────────────────────────────
   if (step === 'results') {
+    const scoringStandards = [
+      t('scoringStandard_scl90'),
+      t('scoringStandard_sds'),
+      t('scoringStandard_sas'),
+      t('scoringStandard_hcl32'),
+      t('scoringStandard_asrs'),
+    ];
+
     return (
       <div className="max-w-2xl mx-auto py-12 px-4">
         <h1 className="text-2xl font-bold mb-2">{t('resultsTitle')}</h1>
@@ -264,52 +279,52 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
             {t('savedSkipped')}
           </p>
         )}
-        <div className="space-y-4">
-          {questionnaires.map(sq => {
-            const score = allScores[sq.id];
-            if (!score) return null;
-            const colorClass =
-              SEVERITY_COLOR[score.severity] ?? 'text-foreground';
-            return (
-              <div
-                key={sq.id}
-                className="bg-white rounded-lg shadow-sm border p-6"
-              >
-                <h2 className="text-lg font-semibold mb-3">
-                  {sq.questionnaire.title}
-                </h2>
-                <div className="flex items-center gap-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t('totalScore')}
-                    </p>
-                    <p className="text-3xl font-bold">{score.totalScore}</p>
-                  </div>
-                  {score.severity && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        {t('severity')}
-                      </p>
-                      <p className={`text-xl font-semibold ${colorClass}`}>
-                        {getSeverityLabel(score.severity)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(`/questionnaire/${sq.id}`)}
-                  >
-                    {t('viewDetail')}
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-3">{t('scoringBriefTitle')}</h2>
+          <ul className="list-disc ml-4 text-sm text-gray-700 space-y-1">
+            {scoringStandards.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h2 className="text-lg font-semibold mb-3">{t('resultsTableTitle')}</h2>
+          <p className="text-sm font-medium mb-3">
+            {t('columnCn')}: {name}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b bg-muted/30">
+                  <th className="px-3 py-2 text-left font-semibold">{t('resultTableScale')}</th>
+                  <th className="px-3 py-2 text-left font-semibold">{t('resultTableScore')}</th>
+                  <th className="px-3 py-2 text-left font-semibold">{t('resultTableResult')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {SCORE_TABLE_ORDER.map((id) => {
+                  const score = allScores[id];
+                  const severity = score?.severity ? getSeverityLabel(score.severity) : '-';
+                  return (
+                    <tr className="border-b" key={id}>
+                      <td className="px-3 py-2 font-medium">{SCORE_TABLE_LABELS[id]}</td>
+                      <td className="px-3 py-2">{score?.totalScore ?? '-'}</td>
+                      <td className="px-3 py-2">{severity}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
         <div className="mt-8 flex gap-4">
+          <Button
+            variant="outline"
+            onClick={() => router.push('/survey/all')}
+          >
+            {t('viewAllResults')}
+          </Button>
           <Button
             variant="outline"
             onClick={() => router.push('/questionnaire')}
@@ -337,6 +352,25 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
 
       <h1 className="text-2xl font-bold mb-1">{currentQ.title}</h1>
       <p className="text-muted-foreground mb-6">{currentQ.description}</p>
+
+      <div className="bg-white border rounded-lg p-4 mb-6 space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">
+            {t('scaleIntroTitle')}
+          </h2>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            {currentQ.details.introduction}
+          </p>
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">
+            {t('scaleInstructionsTitle')}
+          </h2>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            {currentQ.details.instructions}
+          </p>
+        </div>
+      </div>
 
       <ProgressBar completionPercentage={completionPct} />
 

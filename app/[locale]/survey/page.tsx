@@ -8,7 +8,7 @@ import { Questionnaire } from '@/types';
  * IDs of the questionnaires that make up the comprehensive survey.
  * They are presented in this order.
  */
-const SURVEY_IDS = ['phq9', 'gad7', 'pss10'] as const;
+const SURVEY_IDS = ['scl90', 'sds', 'sas', 'hcl32', 'asrs'] as const;
 
 export default function SurveyPage() {
   const allQuestionnaires = useQuestionnaire() as Questionnaire[];

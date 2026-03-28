@@ -13,6 +13,7 @@ import {gd} from "./gd/en";
 import {npd} from "./npd/en";
 import {hcl32} from "./hcl32/en";
 import {sas} from "./sas/en";
+import {asrs} from "./asrs/en";
 
 export const questionnairesEn: Questionnaire[] = [
     ocd,
@@ -29,4 +30,5 @@ export const questionnairesEn: Questionnaire[] = [
     npd,
     hcl32,
     sas,
+    asrs,
 ];
