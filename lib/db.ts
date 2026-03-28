@@ -18,29 +18,35 @@ type PoolLike = {
 };
 
 let pool: PoolLike | null = null;
+let poolInitialized = false;
 
-export function getPool(): PoolLike | null {
+export async function getPool(): Promise<PoolLike | null> {
   if (!process.env.DATABASE_URL) {
     return null;
   }
 
-  if (!pool) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { Pool } = require('pg') as { Pool: new (opts: { connectionString: string }) => PoolLike };
-      pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    } catch {
-      console.warn('[db] pg module not available – database features disabled');
-      return null;
-    }
+  if (poolInitialized) {
+    return pool;
+  }
+
+  poolInitialized = true;
+
+  try {
+    const { Pool } = (await import('pg')) as {
+      Pool: new (opts: { connectionString: string }) => PoolLike;
+    };
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  } catch {
+    console.warn('[db] pg module not available – database features disabled');
+    pool = null;
   }
 
   return pool;
 }
 
-/** Ensure the survey_results table exists. Call once on server start / first use. */
+/** Ensure the survey_results table exists. Call once on first use. */
 export async function ensureSurveyTable(): Promise<void> {
-  const db = getPool();
+  const db = await getPool();
   if (!db) return;
 
   await db.query(`

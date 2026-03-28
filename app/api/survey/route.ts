@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool, ensureSurveyTable } from '@/lib/db';
 
+const DEFAULT_LOCALE = 'zh';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -19,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const db = getPool();
+    const db = await getPool();
     if (!db) {
       // Database not configured – return success without persisting.
       return NextResponse.json({ ok: true, persisted: false });
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO survey_results (name, locale, scores, answers)
        VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [name.trim(), locale ?? 'zh', JSON.stringify(scores), JSON.stringify(answers)]
+      [name.trim(), locale ?? DEFAULT_LOCALE, JSON.stringify(scores), JSON.stringify(answers)]
     );
 
     const id = (result.rows[0] as { id: number }).id;

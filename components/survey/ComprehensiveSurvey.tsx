@@ -61,6 +61,7 @@ const SEVERITY_COLOR: Record<string, string> = {
 };
 
 const QUESTIONS_PER_PAGE = 5;
+const MAX_NAME_LENGTH = 100;
 
 export function ComprehensiveSurvey({ questionnaires }: Props) {
   const router = useRouter();
@@ -215,7 +216,7 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
             className="w-full border rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary mb-6"
             placeholder={t('namePlaceholder')}
             value={name}
-            maxLength={100}
+            maxLength={MAX_NAME_LENGTH}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleNameNext()}
           />
