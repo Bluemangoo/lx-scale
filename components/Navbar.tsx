@@ -42,15 +42,6 @@ export function Navbar() {
           >
             {t('questionsList')}
           </Link>
-          <Link
-            href="/survey"
-            className={`${pathname.startsWith('/survey')
-              ? 'font-medium'
-              : 'text-muted-foreground'
-              } hover:text-foreground transition-colors`}
-          >
-            {t('comprehensiveSurvey')}
-          </Link>
           <GitHubStarButton
             user="lxdao-official"
             repo="lx-scale"

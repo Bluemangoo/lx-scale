@@ -173,6 +173,13 @@ export function Questionnaire({
     setShowProgressPanel((prev) => !prev);
   };
 
+  const handleRestart = () => {
+    setAnswers({});
+    setCurrentPage(1);
+    clearDraft(id);
+    window.scrollTo(0, 0);
+  };
+
   const setQuestionRef =
     (questionId: number) => (el: HTMLDivElement | null) => {
       questionRefs.current[questionId] = el;
@@ -180,7 +187,16 @@ export function Questionnaire({
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-8">{questionnaire.title}</h1>
+      <div className="flex items-center justify-between mb-8 gap-3">
+        <h1 className="text-2xl font-bold">{questionnaire.title}</h1>
+        <button
+          type="button"
+          onClick={handleRestart}
+          className="text-sm px-3 py-2 border rounded-md hover:bg-gray-50"
+        >
+          重新开始
+        </button>
+      </div>
 
       <ProgressPanel
         questions={questions}

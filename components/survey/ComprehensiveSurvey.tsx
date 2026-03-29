@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Question } from '@/components/questionnaire/test/public/Question';
 import { ProgressBar } from '@/components/questionnaire/test/public/ProgressBar';
@@ -14,6 +14,7 @@ import { calculateSDSResults } from '@/components/questionnaire/test/private/SDS
 import { calculateSASResults } from '@/components/questionnaire/test/private/SASCalculator';
 import { calculateHCL32Results } from '@/components/questionnaire/test/private/HCL32Calculator';
 import { calculateADHDResults } from '@/components/questionnaire/test/private/ADHDCalculator';
+import { compressToEncodedURIComponent as compress } from 'lz-string';
 import { toast } from 'sonner';
 import { useScopedI18n } from '@/locales/client';
 
@@ -24,6 +25,7 @@ export interface SurveyQuestionnaire {
 
 interface Props {
   questionnaires: SurveyQuestionnaire[];
+  surveyId?: string | null;
 }
 
 type Step = 'name' | 'questionnaire' | 'saving' | 'results';
@@ -70,9 +72,16 @@ function computeScore(
 const QUESTIONS_PER_PAGE = 5;
 const MAX_NAME_LENGTH = 100;
 
-export function ComprehensiveSurvey({ questionnaires }: Props) {
+function getDraftStorageKey(surveyId?: string | null) {
+  return `comprehensive-survey-draft:${surveyId ?? 'root'}`;
+}
+
+export function ComprehensiveSurvey({ questionnaires, surveyId = null }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const t = useScopedI18n('component.survey');
+  const draftStorageKey = useMemo(() => getDraftStorageKey(surveyId), [surveyId]);
+  const localeFromPath = pathname.split('/').filter(Boolean)[0] || 'zh';
 
   const [step, setStep] = useState<Step>('name');
   const [name, setName] = useState('');
@@ -81,6 +90,44 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
   const [allAnswers, setAllAnswers] = useState<AllAnswers>({});
   const [allScores, setAllScores] = useState<AllScores>({});
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        step?: Step;
+        name?: string;
+        qIndex?: number;
+        page?: number;
+        allAnswers?: AllAnswers;
+        allScores?: AllScores;
+        saved?: boolean;
+      };
+      if (parsed.step) setStep(parsed.step);
+      if (parsed.name) setName(parsed.name);
+      if (typeof parsed.qIndex === 'number') setQIndex(parsed.qIndex);
+      if (typeof parsed.page === 'number') setPage(parsed.page);
+      if (parsed.allAnswers) setAllAnswers(parsed.allAnswers);
+      if (parsed.allScores) setAllScores(parsed.allScores);
+      if (typeof parsed.saved === 'boolean') setSaved(parsed.saved);
+    } catch {
+      // Ignore invalid draft payloads
+    }
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    const draft = {
+      step,
+      name,
+      qIndex,
+      page,
+      allAnswers,
+      allScores,
+      saved,
+    };
+    localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+  }, [step, name, qIndex, page, allAnswers, allScores, saved, draftStorageKey]);
 
   const currentSurvey = questionnaires[qIndex];
   const currentQ = currentSurvey?.questionnaire;
@@ -175,6 +222,7 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          surveyId,
           name: name.trim(),
           locale: document.documentElement.lang || 'zh',
           scores,
@@ -202,6 +250,46 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
       extremely_severe: t('severity_extremely_severe'),
     };
     return map[severity] ?? severity;
+  }
+
+  function restartAll() {
+    setStep('name');
+    setName('');
+    setQIndex(0);
+    setPage(1);
+    setAllAnswers({});
+    setAllScores({});
+    setSaved(false);
+    localStorage.removeItem(draftStorageKey);
+  }
+
+  function restartCurrentScale() {
+    if (!currentSurvey) return;
+    setAllAnswers((prev) => {
+      const next = { ...prev };
+      delete next[currentSurvey.id];
+      return next;
+    });
+    setAllScores((prev) => {
+      const next = { ...prev };
+      delete next[currentSurvey.id];
+      return next;
+    });
+    setPage(1);
+    window.scrollTo(0, 0);
+  }
+
+  function buildQuestionnaireResultLink(scaleId: string): string | null {
+    const answerMap = allAnswers[scaleId];
+    const questionnaire = questionnaires.find((item) => item.id === scaleId)?.questionnaire;
+    if (!answerMap || !questionnaire) return null;
+
+    const answerString = questionnaire.questions
+      .map((_, index) => answerMap[index + 1] ?? '0')
+      .join('');
+
+    const encodedAnswers = compress(answerString);
+    return `/${localeFromPath}/questionnaire/${scaleId}/result?ans=${encodedAnswers}`;
   }
 
   // ── Name input step ──────────────────────────────────────────────────────────
@@ -300,17 +388,32 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
                   <th className="px-3 py-2 text-left font-semibold">{t('resultTableScale')}</th>
                   <th className="px-3 py-2 text-left font-semibold">{t('resultTableScore')}</th>
                   <th className="px-3 py-2 text-left font-semibold">{t('resultTableResult')}</th>
+                  <th className="px-3 py-2 text-left font-semibold">{t('resultTableDetail')}</th>
                 </tr>
               </thead>
               <tbody>
                 {SCORE_TABLE_ORDER.map((id) => {
                   const score = allScores[id];
                   const severity = score?.severity ? getSeverityLabel(score.severity) : '-';
+                  const detailLink = buildQuestionnaireResultLink(id);
                   return (
                     <tr className="border-b" key={id}>
                       <td className="px-3 py-2 font-medium">{SCORE_TABLE_LABELS[id]}</td>
                       <td className="px-3 py-2">{score?.totalScore ?? '-'}</td>
                       <td className="px-3 py-2">{severity}</td>
+                      <td className="px-3 py-2">
+                        {detailLink ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(detailLink, '_blank', 'noopener,noreferrer')}
+                          >
+                            {t('openDetailInNewTab')}
+                          </Button>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -321,7 +424,7 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
         <div className="mt-8 flex gap-4">
           <Button
             variant="outline"
-            onClick={() => router.push('/survey/all')}
+            onClick={() => router.push(surveyId ? `/survey/${surveyId}/all` : '/survey/all')}
           >
             {t('viewAllResults')}
           </Button>
@@ -330,6 +433,9 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
             onClick={() => router.push('/questionnaire')}
           >
             {t('exploreMore')}
+          </Button>
+          <Button variant="outline" onClick={restartAll}>
+            {t('restartAll')}
           </Button>
           <Button onClick={() => router.push('/')}>{t('backHome')}</Button>
         </div>
@@ -341,12 +447,22 @@ export function ComprehensiveSurvey({ questionnaires }: Props) {
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
       <div className="mb-4">
-        <p className="text-sm text-muted-foreground mb-1">
-          {t('progressInfo', {
-            current: qIndex + 1,
-            total: questionnaires.length,
-          })}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+          <p className="text-sm text-muted-foreground">
+            {t('progressInfo', {
+              current: qIndex + 1,
+              total: questionnaires.length,
+            })}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={restartCurrentScale}>
+              {t('restartCurrentScale')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={restartAll}>
+              {t('restartAll')}
+            </Button>
+          </div>
+        </div>
         <ProgressBar completionPercentage={overallPct} />
       </div>
 

@@ -52,11 +52,18 @@ export async function ensureSurveyTable(): Promise<void> {
   await db.query(`
     CREATE TABLE IF NOT EXISTS survey_results (
       id         SERIAL PRIMARY KEY,
+      survey_id  TEXT NULL,
       name       TEXT NOT NULL,
       locale     TEXT NOT NULL DEFAULT 'zh',
       scores     JSONB NOT NULL DEFAULT '{}',
       answers    JSONB NOT NULL DEFAULT '{}',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+
+  // Backward-compatible migration for existing tables created before survey_id was introduced.
+  await db.query(`
+    ALTER TABLE survey_results
+    ADD COLUMN IF NOT EXISTS survey_id TEXT NULL
   `);
 }

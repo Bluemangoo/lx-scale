@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import { useScopedI18n } from '@/locales/client';
 
 interface RawScore {
@@ -10,6 +10,7 @@ interface RawScore {
 
 interface SurveyItem {
   id: number;
+  survey_id?: string | null;
   name: string;
   locale: string;
   scores: Record<string, RawScore>;
@@ -66,7 +67,12 @@ function formatTime(isoTime: string, locale: string) {
   }).format(date);
 }
 
-export default function SurveyAllResultsPage() {
+export default function SurveyAllResultsByIdPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
   const t = useScopedI18n('component.survey');
   const [items, setItems] = useState<SurveyItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +81,7 @@ export default function SurveyAllResultsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/api/survey?limit=500&root=1');
+        const res = await fetch(`/api/survey?limit=500&surveyId=${encodeURIComponent(id)}`);
         const data = await res.json();
         setItems((data.items || []) as SurveyItem[]);
       } catch {
@@ -85,7 +91,7 @@ export default function SurveyAllResultsPage() {
       }
     };
     load();
-  }, []);
+  }, [id]);
 
   const rows = useMemo(() => {
     const sorted = [...items].sort((a, b) => {
@@ -120,7 +126,7 @@ export default function SurveyAllResultsPage() {
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-4">{t('allResultsTitle')}</h1>
+        <h1 className="text-2xl font-bold mb-4">{t('allResultsTitle')} (ID: {id})</h1>
         <p className="text-muted-foreground">{t('allResultsLoading')}</p>
       </div>
     );
@@ -128,7 +134,7 @@ export default function SurveyAllResultsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-4">{t('allResultsTitle')}</h1>
+      <h1 className="text-2xl font-bold mb-4">{t('allResultsTitle')} (ID: {id})</h1>
       <p className="text-sm text-muted-foreground mb-4">{t('allResultsDesc')}</p>
 
       <div className="mb-4 flex items-center gap-2">
