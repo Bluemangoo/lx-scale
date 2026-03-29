@@ -18,6 +18,10 @@ export function TagFilters({ onTagsChange }: TagFiltersProps) {
     );
   };
 
+  const clearTags = () => {
+    setActiveTags([]);
+  };
+
   // Notify parent component when tags change
   useEffect(() => {
     onTagsChange(activeTags);
@@ -66,6 +70,15 @@ export function TagFilters({ onTagsChange }: TagFiltersProps) {
           {tag}
         </Button>
       ))}
+      {activeTags.length > 0 && (
+        <Button
+          variant="secondary"
+          className="cursor-pointer"
+          onClick={clearTags}
+        >
+          {lang === 'en' ? 'Clear Filters' : '清空筛选'}
+        </Button>
+      )}
     </div>
   );
 }
