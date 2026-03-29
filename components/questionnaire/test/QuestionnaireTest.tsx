@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useSyncExternalStore } from 'react';
 import { compressToEncodedURIComponent as compress } from 'lz-string';
 import { Question } from '@/components/questionnaire/test/public/Question';
 import { Navigation } from '@/components/questionnaire/test/public/Navigation';
 import { ProgressPanel } from '@/components/questionnaire/test/public/ProgressPanel';
 import { ProgressBar } from '@/components/questionnaire/test/public/ProgressBar';
 import { saveDraft, loadDraft, clearDraft } from '@/lib/storage';
+import { addQuestionnaireHistory } from '@/lib/questionnaire-history';
 import { Questionnaire as QuestionnaireType, QuestionType } from '@/types';
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner"
@@ -16,15 +17,17 @@ interface QuestionnaireProps {
   id: string;
 }
 
+const emptySubscribe = () => () => {};
+
 export function Questionnaire({
   questionnaire,
   id,
 }: QuestionnaireProps) {
   const router = useRouter();
+  const isHydrated = useSyncExternalStore(emptySubscribe, () => true, () => false);
   // State management
   const [currentPage, setCurrentPage] = useState(1);
   const [answers, setAnswers] = useState<{ [key: number]: string }>(() => {
-    // Load saved answers from local storage
     const savedAnswers = loadDraft(id);
     return savedAnswers || {};
   });
@@ -32,12 +35,14 @@ export function Questionnaire({
   const questionRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   // Flag to indicate whether the questionnaire has been submitted
   const hasSubmittedRef = useRef(false);
+  // Flag to suppress auto-save during explicit reset actions.
+  const suppressAutoSaveRef = useRef(false);
 
   // Save answers when component unmounts
   useEffect(() => {
     return () => {
       // If user hasn't submitted yet, persist draft on unmount
-      if (!hasSubmittedRef.current && Object.keys(answers).length > 0) {
+      if (!hasSubmittedRef.current && !suppressAutoSaveRef.current && Object.keys(answers).length > 0) {
         saveDraft(id, answers);
       }
     };
@@ -81,15 +86,16 @@ export function Questionnaire({
     : 0;
 
   const handleSelect = (questionId: number, value: string) => {
-    const newAnswers = {
-      ...answers,
-      [questionId]: value,
-    };
-    setAnswers(newAnswers);
-    // Auto-save answers
-    if (Object.keys(newAnswers).length < questions.length) {
+    suppressAutoSaveRef.current = false;
+    setAnswers((prev) => {
+      const newAnswers = {
+        ...prev,
+        [questionId]: value,
+      };
+      // Auto-save answers, including the final answered question.
       saveDraft(id, newAnswers);
-    }
+      return newAnswers;
+    });
   };
 
   const goToPage = (page: number) => {
@@ -151,6 +157,7 @@ export function Questionnaire({
     if (answers) {
       // Mark as submitted to prevent saving draft on unmount
       hasSubmittedRef.current = true;
+      suppressAutoSaveRef.current = true;
 
       // Clear draft before navigation
       clearDraft(id);
@@ -158,6 +165,12 @@ export function Questionnaire({
       // Encode answers for sharing
       const answerString = questions.map((q) => answers[q.id] ?? '0').join('');
       const encodedAnswers = compress(answerString);
+
+      addQuestionnaireHistory({
+        questionnaireId: id,
+        ans: encodedAnswers,
+        createdAt: new Date().toISOString(),
+      });
 
       // Navigate to results page with score & encoded answers
       router.push(
@@ -174,6 +187,7 @@ export function Questionnaire({
   };
 
   const handleRestart = () => {
+    suppressAutoSaveRef.current = true;
     setAnswers({});
     setCurrentPage(1);
     clearDraft(id);
@@ -184,6 +198,11 @@ export function Questionnaire({
     (questionId: number) => (el: HTMLDivElement | null) => {
       questionRefs.current[questionId] = el;
     };
+
+  // Render a stable shell until hydration finishes to avoid SSR/CSR text mismatch from local drafts.
+  if (!isHydrated) {
+    return <div className="max-w-3xl mx-auto py-8 px-4" />;
+  }
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">

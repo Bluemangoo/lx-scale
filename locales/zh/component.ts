@@ -271,7 +271,7 @@ export default {
         resultTableScore: '得分',
         resultTableResult: '结果',
         resultTableDetail: '详细结果',
-        openDetailInNewTab: '新标签查看',
+        openDetailInNewTab: '在新标签查看',
         restartAll: '重新开始全部',
         restartCurrentScale: '重新开始这个量表',
         totalScore: '总分',

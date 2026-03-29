@@ -15,6 +15,7 @@ import { calculateSASResults } from '@/components/questionnaire/test/private/SAS
 import { calculateHCL32Results } from '@/components/questionnaire/test/private/HCL32Calculator';
 import { calculateADHDResults } from '@/components/questionnaire/test/private/ADHDCalculator';
 import { compressToEncodedURIComponent as compress } from 'lz-string';
+import { addManyQuestionnaireHistory } from '@/lib/questionnaire-history';
 import { toast } from 'sonner';
 import { useScopedI18n } from '@/locales/client';
 
@@ -117,6 +118,20 @@ export function ComprehensiveSurvey({ questionnaires, surveyId = null }: Props) 
   }, [draftStorageKey]);
 
   useEffect(() => {
+    const hasMeaningfulProgress =
+      step !== 'name' ||
+      name.trim().length > 0 ||
+      qIndex > 0 ||
+      page > 1 ||
+      Object.keys(allAnswers).length > 0 ||
+      Object.keys(allScores).length > 0 ||
+      saved;
+
+    if (!hasMeaningfulProgress) {
+      localStorage.removeItem(draftStorageKey);
+      return;
+    }
+
     const draft = {
       step,
       name,
@@ -166,13 +181,29 @@ export function ComprehensiveSurvey({ questionnaires, surveyId = null }: Props) 
     : 0;
 
   function handleSelect(questionId: number, value: string) {
-    setAllAnswers(prev => ({
-      ...prev,
-      [currentSurvey.id]: {
-        ...(prev[currentSurvey.id] ?? {}),
-        [questionId]: value,
-      },
-    }));
+    setAllAnswers(prev => {
+      const next = {
+        ...prev,
+        [currentSurvey.id]: {
+          ...(prev[currentSurvey.id] ?? {}),
+          [questionId]: value,
+        },
+      };
+
+      // Persist immediately to avoid losing the latest answer when leaving the page quickly.
+      const draft = {
+        step,
+        name,
+        qIndex,
+        page,
+        allAnswers: next,
+        allScores,
+        saved,
+      };
+      localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+
+      return next;
+    });
   }
 
   function handleNameNext() {
@@ -211,6 +242,29 @@ export function ComprehensiveSurvey({ questionnaires, surveyId = null }: Props) 
       setPage(1);
       window.scrollTo(0, 0);
     } else {
+      const mergedAnswers: AllAnswers = {
+        ...allAnswers,
+        [currentSurvey.id]: answers,
+      };
+
+      const historyEntries = questionnaires
+        .map((sq) => {
+          const answerMap = mergedAnswers[sq.id];
+          if (!answerMap) return null;
+
+          const answerString = sq.questionnaire.questions
+            .map((_, index) => answerMap[index + 1] ?? '0')
+            .join('');
+
+          return {
+            questionnaireId: sq.id,
+            ans: compress(answerString),
+            createdAt: new Date().toISOString(),
+          };
+        })
+        .filter(Boolean) as Array<{ questionnaireId: string; ans: string; createdAt: string }>;
+
+      addManyQuestionnaireHistory(historyEntries);
       setStep('saving');
       saveResults(newScores);
     }

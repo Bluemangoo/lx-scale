@@ -1,13 +1,25 @@
 const STORAGE_KEY = 'questionnaire';
 
+function canUseStorage() {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+}
+
+function parseDrafts(key: string): Record<string, { answers?: { [key: number]: string }; savedAt?: string }> {
+  if (!canUseStorage()) return {};
+  const raw = localStorage.getItem(key);
+  return JSON.parse(raw || '{}');
+}
+
 export function save(usage: string, questionnaireType: string, answers: { [key: number]: string }) {
+  if (!canUseStorage()) return false;
   try {
-    const drafts = JSON.parse(localStorage.getItem(`${STORAGE_KEY}_${usage}`) || '{}');
+    const key = `${STORAGE_KEY}_${usage}`;
+    const drafts = parseDrafts(key);
     drafts[questionnaireType] = {
       answers,
       savedAt: new Date().toISOString()
     };
-    localStorage.setItem(`${STORAGE_KEY}_${usage}`, JSON.stringify(drafts));
+    localStorage.setItem(key, JSON.stringify(drafts));
     return true;
   } catch (error) {
     console.error('Failed to save draft:', error);
@@ -16,8 +28,9 @@ export function save(usage: string, questionnaireType: string, answers: { [key: 
 }
 
 export function load(usage: string, questionnaireType: string): { [key: number]: string } | null {
+  if (!canUseStorage()) return null;
   try {
-    const drafts = JSON.parse(localStorage.getItem(`${STORAGE_KEY}_${usage}`) || '{}');
+    const drafts = parseDrafts(`${STORAGE_KEY}_${usage}`);
     return drafts[questionnaireType]?.answers || null;
   } catch (error) {
     console.error('Failed to load draft:', error);
@@ -26,9 +39,10 @@ export function load(usage: string, questionnaireType: string): { [key: number]:
 }
 
 export function clear(usage: string, questionnaireType: string) {
+  if (!canUseStorage()) return false;
   try {
     const key = `${STORAGE_KEY}_${usage}`;
-    const drafts = JSON.parse(localStorage.getItem(key) || '{}');
+    const drafts = parseDrafts(key);
 
     // If the questionnaire draft doesn't exist, return false directly
     if (!(questionnaireType in drafts)) {
